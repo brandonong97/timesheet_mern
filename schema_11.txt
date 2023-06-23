@@ -1,0 +1,110 @@
+DROP TABLE IF EXISTS Category CASCADE;
+DROP TABLE IF EXISTS Task CASCADE;
+DROP TABLE IF EXISTS Employee CASCADE;
+DROP TABLE IF EXISTS Register CASCADE;
+
+CREATE SEQUENCE employee_id_seq;
+CREATE SEQUENCE register_id_seq;
+CREATE SEQUENCE task_id_seq;
+
+CREATE TABLE IF NOT EXISTS Register (
+  e_id INTEGER PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  "password" TEXT NOT NULL,
+  is_admin TEXT DEFAULT '',
+  righttitle TEXT DEFAULT ''
+);
+
+CREATE OR REPLACE VIEW "users" AS
+SELECT * FROM Register;
+
+CREATE TABLE IF NOT EXISTS Category (
+  catid int PRIMARY KEY,
+  catname text
+);
+
+CREATE OR REPLACE VIEW cats AS
+SELECT catname FROM category;
+
+CREATE TABLE IF NOT EXISTS Task (
+  task_id INTEGER PRIMARY KEY,
+  catid int,
+  taskdate date, 
+  starttime time,
+  endtime time,
+  tasktype text,
+  taskstatus text, 
+  description text ,
+  ename text,
+  FOREIGN KEY (catid) REFERENCES Category(catid)
+);
+
+CREATE OR REPLACE VIEW projects AS
+SELECT * FROM Task;
+
+CREATE TABLE IF NOT EXISTS Employee(
+  eid int PRIMARY KEY,
+  ename text,
+  username text UNIQUE NOT NULL,
+  task_id int,
+  FOREIGN KEY (task_id) REFERENCES Task(task_id),
+  FOREIGN KEY (username) REFERENCES Register(username)
+);
+
+CREATE OR REPLACE VIEW edata AS
+SELECT * FROM Employee;
+
+-- Create function to set is_admin based on credentials
+CREATE OR REPLACE FUNCTION set_is_admin()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.username = 'admin@example.com'THEN
+    NEW.is_admin := 'admin';
+  ELSE
+    NEW.is_admin := '';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to call set_is_admin function before inserting a new row
+CREATE TRIGGER set_is_admin_trigger
+BEFORE INSERT ON Register
+FOR EACH ROW
+EXECUTE FUNCTION set_is_admin();
+
+-- Create function to set task_id
+CREATE OR REPLACE FUNCTION set_task_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.task_id := nextval('task_id_seq');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to call set_task_id function before inserting a new row
+CREATE TRIGGER set_task_id_trigger
+BEFORE INSERT ON Task
+FOR EACH ROW
+EXECUTE FUNCTION set_task_id();
+
+-- Create function to set e_id
+CREATE OR REPLACE FUNCTION set_register_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.e_id := nextval('register_id_seq');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to call set_register_id function before inserting a new row
+CREATE TRIGGER set_register_id_trigger
+BEFORE INSERT ON Register
+FOR EACH ROW
+EXECUTE FUNCTION set_register_id();
+
+-- Populate initial values for Category only registered categorys will be accepted by post res 
+INSERT INTO Category (catid, catname) VALUES (1, 'Admininstrative');
+INSERT INTO Category (catid, catname) VALUES (2, 'Leave');
+INSERT INTO Category (catid, catname) VALUES (3, 'Finance');
+INSERT INTO Category (catid, catname) VALUES (4, 'HR');
